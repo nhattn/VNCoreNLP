@@ -3,14 +3,17 @@
 
 import os
 import gi
+import sqlite3
 gi.require_version('Gtk', '3.0')
 from gi.repository import Gtk
+from util import *
 
 class NLPCore(Gtk.Window):
     def __init__(self):
         super(NLPCore, self).__init__()
         self.action = "seggment"
         self.is_training = False
+        self.db = None
         self.init_ui()
         self.initialDB()
         self.show()
@@ -207,7 +210,18 @@ VD:
         pass
 
     def initialDB(self):
-        pass
+        try:
+            self.db = sqlite3.connect(os.path.join(os.path.dirname(__file__),'vncore.db'), check_same_thread=False)
+            self.db.execute("CREATE TABLE IF NOT EXISTS sentences (id INTEGER PRIMARY KEY, sentence TEXT, cleaned TEXT, tokens TEXT, tagged TEXT)")
+            if self.db.total_changes >= 0:
+                self.lblstatus.set_markup("<span color=\"green\">Đã kết nối tới cơ sở dữ liệu `vncore.db`</span>")
+            else:
+                self.lblstatus.set_markup("<span color=\"red\">Cơ sở dữ liệu `vncore.db` chưa được kết nối</span>")
+        except Exception as ex:
+            dialogWindow = Gtk.MessageDialog(parent=self, modal=True, destroy_with_parent=True, message_type=Gtk.MessageType.INFO, buttons=Gtk.ButtonsType.OK, text="Lỗi kết nối tới CSDL")
+            dialogWindow.format_secondary_text(str(ex))
+            dialogWindow.run()
+            dialogWindow.destroy()
 
     def quit(self, sender, event):
         Gtk.main_quit()
