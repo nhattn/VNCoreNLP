@@ -28,12 +28,21 @@ def normalize_text(text):
         text = text.replace('/'+t+' ',' ')
     return text.strip()
 
+# https://stackoverflow.com/a/2077321
+def unicode_replace(text):
+    uni = [
+        ["…","..."],
+        ["“","\""],
+        ["”","\""],
+        ["–","-"],
+        [""," "]
+    ]
+    for _, c in enumerate(uni):
+        text = text.replace(c[0],c[1])
+    return text
+
 def regx(text):
-    ans = text.replace("…","...")
-    ans = ans.replace("“","\"")
-    ans = ans.replace("”","\"")
-    ans = ans.replace("–","-")
-    ans = ans.replace(""," ")
+    ans = unicode_replace(text)
     for ch in PUNCTUATION:
         ans = ans.replace(ch,' ' + ch + ' ')
     return ans
