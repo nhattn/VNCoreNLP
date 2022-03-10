@@ -1,3 +1,5 @@
 *.db
 __pycache__/
 *.save
+seggment.kernel
+tagger-base.kernel

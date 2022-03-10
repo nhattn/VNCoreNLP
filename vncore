@@ -6,12 +6,20 @@ import gi
 import sqlite3
 gi.require_version('Gtk', '3.0')
 from gi.repository import Gtk
+import string, re
 from util import *
+from tokenizer import Tokenizer
+from tagger import Tagger
+from vtrie import VTrie
 
 class NLPCore(Gtk.Window):
     def __init__(self):
         super(NLPCore, self).__init__()
         self.action = "seggment"
+        self.kernel_only = False
+        self.tokenizer = None
+        self.postagger = None
+        self.vtrie = VTrie()
         self.is_training = False
         self.db = None
         self.init_ui()
@@ -96,6 +104,7 @@ class NLPCore(Gtk.Window):
         self.lblState = Gtk.Label(label="..", xalign=0)
         self.lblState.get_style_context().add_provider(provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
         self.lblState.get_style_context().add_class('gtk_label')
+        self.lblState.show()
         
         vbox.pack_start(self.lblState, True, True, 0)
 
@@ -154,6 +163,54 @@ class NLPCore(Gtk.Window):
         self.lblstatus.show()
         vbox.show()
 
+    def VTrie(self):
+        try:
+            with open(os.path.join(os.path.dirname(__file__), 'models', 'vocab.txt'), 'r', encoding='utf-8') as fin:
+                word = fin.read().strip()
+                if word:
+                    self.vtrie.add_word(word)
+        except:
+            pass
+
+    def tokenize(self, text):
+        if self.tokenize and self.kernel_only:
+            return self.tokenizer.tokenize(text)
+        features = self.vtrie.extract_words(text.replace('_',' '))
+        for i, v in enumerate(features):
+            tmp = v.split(' ')
+            if tmp[0].lower() in ["ông","bà","anh","chị","em"]:
+                v = ' '.join(tmp[1:])
+                features[i] = v
+        tokens = set([ token for token in features if ' ' in token ])
+        if self.tokenizer:
+            tmp = [ word.replace('_',' ') for word in self.tokenizer.tokenize(text).split(' ') if '_' in word ]
+            for token in tmp:
+                v = token.split(' ')
+                if v[0].lower() in ["ông","bà","anh","chị","em"]:
+                    token = ' '.join(v[1:])
+                if token not in tokens:
+                    tokens.add(token)
+        tokens = sorted(tokens,key=len, reverse=True)
+        for token in tokens:
+            text = text.replace(token, token.replace(' ','_'))
+        for ch in string.punctuation:
+            if ch == ' ' or ch == '_':
+                continue
+            text = text.replace(ch, ' '+ch+' ')
+        text = re.sub(r'\s+',' ',text)
+        return text.strip()
+
+    def tagger(self, text):
+        if self.postagger:
+            if self.kernel_only:
+                return self.postagger.postagging(self.tokenize(text.strip()))
+            return self.postagger.postagging(text.strip())
+        taggers = [[],[]]
+        for word in text.split(' '):
+            taggers[0].append(word)
+            taggers[1].append('N')
+        return taggers
+
     def on_switch_action(self, button, action):
         action = action.lower() if action.lower() in ["tagger","seggment"] else "seggment"
         if self.action == action:
@@ -167,7 +224,38 @@ class NLPCore(Gtk.Window):
             self.btnSegmention.get_style_context().add_class('gtk_actived')
 
     def on_model_changed(self, combo):
-        pass
+        tree_iter = combo.get_active_iter()
+        if tree_iter is not None:
+            model = combo.get_model()
+            name, _ = model[tree_iter][:2]
+        else:
+            entry = combo.get_child()
+            name = entry.get_text()
+        if name.lower() == "mặc định":
+            self.load_kernel("base")
+            self.kernel_only = False
+        else:
+            self.load_kernel("")
+            self.kernel_only = True
+
+    def load_kernel(self, version):
+        if version.strip():
+            version = "-%s" % version
+        kernel = "seggment%s.kernel" % version
+        kernel_path = os.path.join(os.path.dirname(__file__), 'models', kernel)
+        if os.path.isfile(kernel_path):
+            if self.tokenizer is None:
+                self.tokenizer = Tokenizer(kernel_path)
+            else:
+                self.tokenizer.load_kernel(kernel_path)
+
+        kernel = "tagger%s.kernel" % version
+        kernel_path = os.path.join(os.path.dirname(__file__), 'models', kernel)
+        if os.path.isfile(kernel_path):
+            if self.postagger is None:
+                self.postagger = Tagger(kernel_path)
+            else:
+                self.postagger.load_kernel(kernel_path)
 
     def on_traintok_clicked(self, button):
         pass
@@ -207,7 +295,30 @@ VD:
         pass
     
     def on_eval_clicked(self, button):
-        pass
+        textbuffer = self.textview.get_buffer()
+        text = textbuffer.get_text(textbuffer.get_start_iter(),textbuffer.get_end_iter(),True).strip()
+        if text:
+            text = text.replace('”','"')
+            text = text.replace('“','"')
+            text = normalize_text(text+' ')
+            if self.action == "seggment":
+                tokens = self.tokenize(text).split(' ')
+                for i, tok in enumerate(tokens):
+                    if '_' in tok:
+                        tok = '<b><span color="blue">'+tok+'</span></b>'
+                        tokens[i] = tok
+                text = ' '.join(tokens)
+            else:
+                result = self.tagger(text.strip())
+                text = ''
+                for i in range(len(result[0])):
+                    text += ' ' + result[0][i]+'<b><span color="blue">/'+result[1][i]+'</span></b>'
+                text = text.strip()
+            text_buffer = Gtk.TextBuffer()
+            self.textview.set_buffer(text_buffer)
+            text_buffer.insert_markup(text_buffer.get_start_iter(),text.replace('&','&amp;'), -1)
+        else:
+            self.lblState.set_markup('<span color="brown">Không có dữ liệu</span>')
 
     def initialDB(self):
         try:
