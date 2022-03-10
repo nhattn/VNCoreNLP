@@ -7,6 +7,7 @@ import sqlite3
 gi.require_version('Gtk', '3.0')
 from gi.repository import Gtk
 import string, re
+import multiprocessing
 from util import *
 from tokenizer import Tokenizer
 from tagger import Tagger
@@ -22,6 +23,7 @@ class NLPCore(Gtk.Window):
         self.vtrie = VTrie()
         self.last_id = -1
         self.entry = None
+        self.job = None
         self.is_training = False
         self.db = None
         self.init_ui()
@@ -234,7 +236,12 @@ class NLPCore(Gtk.Window):
                     if '_' in tok:
                         tokens[i] = '<b><span color="blue">'+tok+'</span></b>'
             else:
-                tokens = (self.entry['tagged'] if self.entry['tagged'] else self.entry['sentence']).split(' ')
+                sentence = self.entry['tagged']
+                if not sentence:
+                    sentence = self.entry['tokens']
+                if not sentence:
+                    sentence = self.entry['sentence']
+                tokens = sentence.split(' ')
                 for i, tok in enumerate(tokens):
                     if has_tagged(tok):
                         word_tag = tok.split('/')
@@ -279,11 +286,52 @@ class NLPCore(Gtk.Window):
             else:
                 self.postagger.load_kernel(kernel_path)
 
+    def thread_traning(self, kernel, model, data):
+        if len(data) == 0:
+            return
+        kernel.train(data, model)
+
     def on_traintok_clicked(self, button):
-        pass
+        if self.is_training == False:
+            self.btnTrainTag.set_sensitive(False)
+            button.set_label("Dừng huấn luyện")
+            self.is_training = True
+            try:
+                cur = self.db.cursor()
+                qry = cur.execute("SELECT tokens FROM sentences").fetchall()
+                train_data = []
+                for row in qry:
+                    if row[0]:
+                        train_data.append(row[0])
+                self.job = multiprocessing.Process(target=self.thread_traning, args=(self.tokenizer, os.path.join(os.path.dirname(__file__),"models","seggment.kernel"), train_data))
+                self.job.start()
+            except:
+                pass
+        else:
+            self.is_training = False
+            self.btnTrainTag.set_sensitive(True)
+            button.set_label('Huấn luyện tách từ')
 
     def on_traintag_clicked(self, button):
-        pass
+        if self.is_training == False:
+            self.btnTrainTok.set_sensitive(False)
+            button.set_label("Dừng huấn luyện")
+            self.is_training = True
+            try:
+                cur = self.db.cursor()
+                qry = cur.execute("SELECT tagged FROM sentences").fetchall()
+                train_data = []
+                for row in qry:
+                    if row[0]:
+                        train_data.append(row[0])
+                self.job = multiprocessing.Process(target=self.thread_traning, args=(self.postagger, os.path.join(os.path.dirname(__file__),"models","tagger.kernel"), train_data))
+                self.job.start()
+            except:
+                pass
+        else:
+            self.is_training = False
+            self.btnTrainTok.set_sensitive(True)
+            button.set_label("Huấn luyện gắn nhãn")
     
     def on_help_clicked(self, button):
         dialog = Gtk.MessageDialog(transient_for=self,flags=0,message_type=Gtk.MessageType.INFO,buttons=Gtk.ButtonsType.OK,text="Nhãn từ loại")
