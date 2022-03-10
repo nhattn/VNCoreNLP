@@ -7,7 +7,7 @@ import sqlite3
 gi.require_version('Gtk', '3.0')
 from gi.repository import Gtk
 import string, re
-import multiprocessing
+import threading
 from util import *
 from tokenizer import Tokenizer
 from tagger import Tagger
@@ -286,16 +286,22 @@ class NLPCore(Gtk.Window):
             else:
                 self.postagger.load_kernel(kernel_path)
 
-    def thread_traning(self, kernel, model, data):
-        if len(data) == 0:
-            return
-        kernel.train(data, model)
-
     def on_traintok_clicked(self, button):
         if self.is_training == False:
             self.btnTrainTag.set_sensitive(False)
             button.set_label("Dừng huấn luyện")
             self.is_training = True
+            # https://stackoverflow.com/a/11201281
+            def thread_segment_training(obj, data):
+                if len(data) <= 1:
+                    obj.on_traintok_clicked(obj.btnTrainTok)
+                    return
+                try:
+                    model = os.path.join(os.path.dirname(__file__),"models","seggment.kernel")
+                    obj.tokenizer.train(data, model)
+                except:
+                    pass
+                obj.on_traintok_clicked(obj.btnTrainTok)
             try:
                 cur = self.db.cursor()
                 qry = cur.execute("SELECT tokens FROM sentences").fetchall()
@@ -303,8 +309,9 @@ class NLPCore(Gtk.Window):
                 for row in qry:
                     if row[0]:
                         train_data.append(row[0])
-                self.job = multiprocessing.Process(target=self.thread_traning, args=(self.tokenizer, os.path.join(os.path.dirname(__file__),"models","seggment.kernel"), train_data))
+                self.job = threading.Thread(target=thread_segment_training, args=(self, train_data))
                 self.job.start()
+                self.job.join()
             except:
                 pass
         else:
@@ -317,6 +324,16 @@ class NLPCore(Gtk.Window):
             self.btnTrainTok.set_sensitive(False)
             button.set_label("Dừng huấn luyện")
             self.is_training = True
+            def thread_segment_training(obj, data):
+                if len(data) <= 1:
+                    obj.on_traintag_clicked(obj.btnTrainTag)
+                    return
+                try:
+                    model = os.path.join(os.path.dirname(__file__),"models","tagger.kernel")
+                    obj.postagger.train(data, model)
+                except:
+                    pass
+                obj.on_traintag_clicked(obj.btnTrainTag)
             try:
                 cur = self.db.cursor()
                 qry = cur.execute("SELECT tagged FROM sentences").fetchall()
@@ -324,7 +341,7 @@ class NLPCore(Gtk.Window):
                 for row in qry:
                     if row[0]:
                         train_data.append(row[0])
-                self.job = multiprocessing.Process(target=self.thread_traning, args=(self.postagger, os.path.join(os.path.dirname(__file__),"models","tagger.kernel"), train_data))
+                self.job = threading.Thread(target=thread_segment_training, args=(self, train_data))
                 self.job.start()
             except:
                 pass

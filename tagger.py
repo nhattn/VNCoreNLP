@@ -55,7 +55,7 @@ class Tagger:
             return
         sentences = [ Tagger.sent2features(sent, True) for sent in train_data ]
         labels = [ Tagger.sent2labels(sent) for sent in train_data ]
-        X_train, X_test, y_train, y_test = train_test_split(sentences, labels, test_size=0, random_state=42)
+        X_train, X_test, y_train, y_test = train_test_split(sentences, labels, test_size=0.01, random_state=42)
         params_space = {
             'c1': scipy.stats.expon(scale=0.5),
             'c2': scipy.stats.expon(scale=0.05),
