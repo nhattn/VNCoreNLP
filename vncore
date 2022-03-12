@@ -12,6 +12,7 @@ from util import *
 from tokenizer import Tokenizer
 from tagger import Tagger
 from vtrie import VTrie
+from kthread import KThread
 
 class NLPCore(Gtk.Window):
     def __init__(self):
@@ -313,15 +314,17 @@ class NLPCore(Gtk.Window):
                 for row in qry:
                     if row[0]:
                         train_data.append(row[0])
-                self.job = threading.Thread(target=thread_segment_training, args=(self, train_data))
+                self.job = KThread(target=thread_segment_training, args=(self, train_data))
                 self.job.start()
-                self.job.join()
+                #self.job.join()
             except:
                 pass
         else:
             self.is_training = False
             self.btnTrainTag.set_sensitive(True)
             button.set_label('Huấn luyện tách từ')
+            if self.job:
+                self.job.kill()
 
     def on_traintag_clicked(self, button):
         if self.is_training == False:
@@ -348,15 +351,17 @@ class NLPCore(Gtk.Window):
                 for row in qry:
                     if row[0]:
                         train_data.append(row[0])
-                self.job = threading.Thread(target=thread_tagger_training, args=(self, train_data))
+                self.job = KThread(target=thread_tagger_training, args=(self, train_data))
                 self.job.start()
-                self.job.join()
+                #self.job.join()
             except:
                 pass
         else:
             self.is_training = False
             self.btnTrainTok.set_sensitive(True)
             button.set_label("Huấn luyện gắn nhãn")
+            if self.job:
+                self.job.kill()
     
     def on_help_clicked(self, button):
         dialog = Gtk.MessageDialog(transient_for=self,flags=0,message_type=Gtk.MessageType.INFO,buttons=Gtk.ButtonsType.OK,text="Nhãn từ loại")
