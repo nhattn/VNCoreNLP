@@ -292,6 +292,9 @@ class NLPCore(Gtk.Window):
             self.btnTrainTag.set_sensitive(False)
             button.set_label("Dừng huấn luyện")
             self.is_training = True
+            if not self.tokenizer:
+                self.info_dialog("Lỗi huấn luyện tách từ","Đối tượng tách từ không được khởi tạo vui lòng xem lại.")
+                return
             # https://stackoverflow.com/a/11201281
             def thread_segment_training(obj, data):
                 if len(data) <= 1:
@@ -325,6 +328,9 @@ class NLPCore(Gtk.Window):
             self.btnTrainTok.set_sensitive(False)
             button.set_label("Dừng huấn luyện")
             self.is_training = True
+            if not self.postagger:
+                self.info_dialog("Lỗi huấn luyện gắn nhãn","Đối tượng gắn nhãn không được khởi tạo vui lòng xem lại.")
+                return
             def thread_tagger_training(obj, data):
                 if len(data) <= 1:
                     obj.on_traintag_clicked(obj.btnTrainTag)
@@ -538,13 +544,16 @@ VD:
             else:
                 self.lblstatus.set_markup("<span color=\"red\">Cơ sở dữ liệu `vncore.db` chưa được kết nối</span>")
         except Exception as ex:
-            dialogWindow = Gtk.MessageDialog(parent=self, modal=True, destroy_with_parent=True, message_type=Gtk.MessageType.INFO, buttons=Gtk.ButtonsType.OK, text="Lỗi kết nối tới CSDL")
-            dialogWindow.format_secondary_text(str(ex))
-            dialogWindow.run()
-            dialogWindow.destroy()
+            self.info_dialog("Lỗi kết nối tới CSDL", str(ex))
 
     def quit(self, sender, event):
         Gtk.main_quit()
+
+    def info_dialog(self, text, secondary_text):
+        dialogWindow = Gtk.MessageDialog(parent=self, modal=True, destroy_with_parent=True, message_type=Gtk.MessageType.INFO, buttons=Gtk.ButtonsType.OK, text=text)
+        dialogWindow.format_secondary_text(secondary_text)
+        dialogWindow.run()
+        dialogWindow.destroy()
 
 if __name__ == "__main__":
     NLPCore()

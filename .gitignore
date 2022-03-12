@@ -3,3 +3,4 @@ __pycache__/
 *.save
 seggment.kernel
 tagger-base.kernel
+tagger.kernel
