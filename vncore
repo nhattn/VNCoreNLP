@@ -12,7 +12,6 @@ from util import *
 from tokenizer import Tokenizer
 from tagger import Tagger
 from vtrie import VTrie
-from kthread import KThread
 
 class NLPCore(Gtk.Window):
     def __init__(self):
@@ -291,7 +290,8 @@ class NLPCore(Gtk.Window):
     def on_traintok_clicked(self, button):
         if self.is_training == False:
             self.btnTrainTag.set_sensitive(False)
-            button.set_label("Dừng huấn luyện")
+            button.set_label("Đang huấn luyện")
+            button.set_sensitive(False)
             self.is_training = True
             if not self.tokenizer:
                 self.info_dialog("Lỗi huấn luyện tách từ","Đối tượng tách từ không được khởi tạo vui lòng xem lại.")
@@ -301,6 +301,7 @@ class NLPCore(Gtk.Window):
                 if len(data) <= 1:
                     obj.on_traintok_clicked(obj.btnTrainTok)
                     return
+                obj.btnTrainTok.set_sensitive(False)
                 try:
                     model = os.path.join(os.path.dirname(__file__),"models","seggment.kernel")
                     obj.tokenizer.train(data, model)
@@ -314,22 +315,22 @@ class NLPCore(Gtk.Window):
                 for row in qry:
                     if row[0]:
                         train_data.append(row[0])
-                self.job = KThread(target=thread_segment_training, args=(self, train_data))
+                self.job = threading.Thread(target=thread_segment_training, args=(self, train_data))
                 self.job.start()
                 #self.job.join()
             except:
                 pass
         else:
             self.is_training = False
+            button.set_sensitive(True)
             self.btnTrainTag.set_sensitive(True)
             button.set_label('Huấn luyện tách từ')
-            if self.job:
-                self.job.kill()
+            
 
     def on_traintag_clicked(self, button):
         if self.is_training == False:
             self.btnTrainTok.set_sensitive(False)
-            button.set_label("Dừng huấn luyện")
+            button.set_label("Đang huấn luyện")
             self.is_training = True
             if not self.postagger:
                 self.info_dialog("Lỗi huấn luyện gắn nhãn","Đối tượng gắn nhãn không được khởi tạo vui lòng xem lại.")
@@ -338,6 +339,7 @@ class NLPCore(Gtk.Window):
                 if len(data) <= 1:
                     obj.on_traintag_clicked(obj.btnTrainTag)
                     return
+                obj.btnTrainTag.set_sensitive(False)
                 try:
                     model = os.path.join(os.path.dirname(__file__),"models","tagger.kernel")
                     obj.postagger.train(data, model)
@@ -351,17 +353,16 @@ class NLPCore(Gtk.Window):
                 for row in qry:
                     if row[0]:
                         train_data.append(row[0])
-                self.job = KThread(target=thread_tagger_training, args=(self, train_data))
+                self.job = threading.Thread(target=thread_tagger_training, args=(self, train_data))
                 self.job.start()
                 #self.job.join()
             except:
                 pass
         else:
             self.is_training = False
+            button.set_sensitive(True)
             self.btnTrainTok.set_sensitive(True)
-            button.set_label("Huấn luyện gắn nhãn")
-            if self.job:
-                self.job.kill()
+            button.set_label("Huấn luyện gắn nhãn")            
     
     def on_help_clicked(self, button):
         dialog = Gtk.MessageDialog(transient_for=self,flags=0,message_type=Gtk.MessageType.INFO,buttons=Gtk.ButtonsType.OK,text="Nhãn từ loại")
