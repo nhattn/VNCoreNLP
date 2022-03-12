@@ -28,6 +28,7 @@ class NLPCore(Gtk.Window):
         self.db = None
         self.init_ui()
         self.initialDB()
+        self.VTrie()
         self.show()
 
     def init_ui(self):
@@ -324,7 +325,7 @@ class NLPCore(Gtk.Window):
             self.btnTrainTok.set_sensitive(False)
             button.set_label("Dừng huấn luyện")
             self.is_training = True
-            def thread_segment_training(obj, data):
+            def thread_tagger_training(obj, data):
                 if len(data) <= 1:
                     obj.on_traintag_clicked(obj.btnTrainTag)
                     return
@@ -341,8 +342,9 @@ class NLPCore(Gtk.Window):
                 for row in qry:
                     if row[0]:
                         train_data.append(row[0])
-                self.job = threading.Thread(target=thread_segment_training, args=(self, train_data))
+                self.job = threading.Thread(target=thread_tagger_training, args=(self, train_data))
                 self.job.start()
+                self.job.join()
             except:
                 pass
         else:
@@ -434,7 +436,7 @@ VD:
     def on_prev_clicked(self, button):
         try:
             cur = self.db.cursor()
-            item = cur.execute("SELECT id, sentence, cleaned, tokens, tagged FROM sentences WHERE id < ? ORDER BY id ASC LIMIT 1" , [ self.last_id ]).fetchone()
+            item = cur.execute("SELECT id, sentence, cleaned, tokens, tagged FROM sentences WHERE id < ? ORDER BY id DESC LIMIT 1" , [ self.last_id ]).fetchone()
             if not item:
                 cur.close()
                 self.lblState.set_markup('<span color="brown">Không có dữ liệu</span>')

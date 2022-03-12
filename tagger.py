@@ -9,6 +9,7 @@ import sklearn_crfsuite
 from sklearn_crfsuite import metrics
 from sklearn.metrics import make_scorer
 from sklearn.model_selection import RandomizedSearchCV
+from util import *
 
 class Tagger:
     filtered_tags = set(string.punctuation)
