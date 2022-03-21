@@ -66,7 +66,9 @@ class Tagger:
             max_iterations=100,
             all_possible_transitions=True,
             c1=params_space['c1'],
-            c2=params_space['c2']
+            c2=params_space['c2'],
+            model_filename=saveTo,
+            keep_tempfiles=True
         )
         f1_scorer = make_scorer(metrics.flat_f1_score,average='weighted', labels=TAGS)
         rs = RandomizedSearchCV( crf, params_space,cv=5,verbose=1, n_jobs=12, n_iter=50, scoring=f1_scorer)
